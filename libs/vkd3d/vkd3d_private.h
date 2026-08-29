@@ -5866,6 +5866,7 @@ struct d3d12_device
     struct vkd3d_meta_ops meta_ops;
     struct vkd3d_sampler_view_map sampler_map;
     struct vkd3d_sampler_state sampler_state;
+    float global_sampler_lod_bias;
     struct vkd3d_shader_debug_ring debug_ring;
     struct vkd3d_pipeline_library_disk_cache disk_cache;
     struct vkd3d_global_descriptor_buffer global_descriptor_buffer;

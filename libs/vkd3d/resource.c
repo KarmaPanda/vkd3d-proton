@@ -8461,6 +8461,7 @@ void d3d12_setup_static_sampler_info(struct d3d12_device *device,
 {
     VkSamplerReductionModeCreateInfo *reduction = &vk_desc->reduction;
     VkSamplerCreateInfo *sampler_desc = &vk_desc->desc;
+    float effective_bias, max_bias;
 
     memset(vk_desc, 0, sizeof(*vk_desc));
     reduction->sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT;
@@ -8473,7 +8474,13 @@ void d3d12_setup_static_sampler_info(struct d3d12_device *device,
     sampler_desc->addressModeU = vk_address_mode_from_d3d12(desc->AddressU);
     sampler_desc->addressModeV = vk_address_mode_from_d3d12(desc->AddressV);
     sampler_desc->addressModeW = vk_address_mode_from_d3d12(desc->AddressW);
-    sampler_desc->mipLodBias = desc->MipLODBias;
+
+    /* Apply global sampler LOD bias and clamp to device limits */
+    effective_bias = desc->MipLODBias + device->global_sampler_lod_bias;
+    max_bias = device->device_info.properties2.properties.limits.maxSamplerLodBias;
+    sampler_desc->mipLodBias = (effective_bias > max_bias) ? max_bias :
+                               (effective_bias < -max_bias) ? -max_bias : effective_bias;
+
     sampler_desc->anisotropyEnable = D3D12_DECODE_IS_ANISOTROPIC_FILTER(desc->Filter);
     sampler_desc->maxAnisotropy = desc->MaxAnisotropy;
     sampler_desc->compareEnable = D3D12_DECODE_IS_COMPARISON_FILTER(desc->Filter);
@@ -8539,6 +8546,7 @@ struct vkd3d_sampler_view_create_info
 static void d3d12_setup_sampler_info(struct d3d12_device *device,
         const D3D12_SAMPLER_DESC2 *desc, struct vkd3d_sampler_view_create_info *info)
 {
+    float effective_bias, max_bias;
     uint32_t num_live_objects;
 
     memset(info, 0, sizeof(*info));
@@ -8559,7 +8567,13 @@ static void d3d12_setup_sampler_info(struct d3d12_device *device,
     info->sampler_desc.addressModeU = vk_address_mode_from_d3d12(desc->AddressU);
     info->sampler_desc.addressModeV = vk_address_mode_from_d3d12(desc->AddressV);
     info->sampler_desc.addressModeW = vk_address_mode_from_d3d12(desc->AddressW);
-    info->sampler_desc.mipLodBias = desc->MipLODBias;
+
+    /* Apply global sampler LOD bias and clamp to device limits */
+    effective_bias = desc->MipLODBias + device->global_sampler_lod_bias;
+    max_bias = device->device_info.properties2.properties.limits.maxSamplerLodBias;
+    info->sampler_desc.mipLodBias = (effective_bias > max_bias) ? max_bias :
+                                    (effective_bias < -max_bias) ? -max_bias : effective_bias;
+
     info->sampler_desc.anisotropyEnable = D3D12_DECODE_IS_ANISOTROPIC_FILTER(desc->Filter);
     info->sampler_desc.maxAnisotropy = desc->MaxAnisotropy;
     info->sampler_desc.compareEnable = D3D12_DECODE_IS_COMPARISON_FILTER(desc->Filter);

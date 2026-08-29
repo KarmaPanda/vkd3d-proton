@@ -239,6 +239,14 @@ commas or semicolons.
  - `VKD3D_SWAPCHAIN_PRESENT_MODE` - accepts a Vulkan present mode name. Forces the
    use of the specified present mode if supported. Currently accepts
    `IMMEDIATE`, `MAILBOX`, `FIFO`, `FIFO_RELAXED`, `FIFO_LATEST_READY`.
+ - `VKD3D_GLOBAL_MIP_LOD_BIAS` - applies a global mipmap LOD bias offset to all samplers.
+   Accepts a floating-point value (e.g., `-0.5`, `0.0`, `1.0`).
+   Default is `0.0` (no bias). The effective bias is clamped to the Vulkan device's
+   `maxSamplerLodBias` limit. Useful for game-level texture sharpening or blurring
+   when the application does not expose sampler bias controls.
+   **Note:** This is a custom vkd3d-proton extension, not part of upstream vkd3d.
+ - `DXVK_SAMPLER_LOD_BIAS` - alias for `VKD3D_GLOBAL_MIP_LOD_BIAS` for compatibility
+   with DXVK-based configurations. If both are set, `VKD3D_GLOBAL_MIP_LOD_BIAS` takes precedence.
 
 ### Frame rate limit
 The `VKD3D_FRAME_RATE` environment variable can be used to limit the frame rate. A value of `0` uncaps the frame rate, while any positive value will limit rendering to the given number of frames per second.

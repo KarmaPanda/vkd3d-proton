@@ -4103,6 +4103,60 @@ static void d3d12_device_init_workarounds(struct d3d12_device *device)
     }
 }
 
+static void d3d12_device_init_global_sampler_lod_bias(struct d3d12_device *device)
+{
+    char env_value[VKD3D_PATH_MAX];
+    float parsed_bias, clamped_bias;
+    float max_bias;
+    char *end_ptr;
+
+    /* Default to 0.0, no bias */
+    device->global_sampler_lod_bias = 0.0f;
+
+    /* Try VKD3D_GLOBAL_MIP_LOD_BIAS first, then fallback to DXVK_SAMPLER_LOD_BIAS */
+    if (!vkd3d_get_env_var("VKD3D_GLOBAL_MIP_LOD_BIAS", env_value, sizeof(env_value)))
+    {
+        if (!vkd3d_get_env_var("DXVK_SAMPLER_LOD_BIAS", env_value, sizeof(env_value)))
+            return; /* Neither variable set, use default 0.0 */
+    }
+
+    /* Parse as float */
+    parsed_bias = strtof(env_value, &end_ptr);
+
+    /* Validate parsing: if end_ptr == env_value, nothing was parsed */
+    if (end_ptr == env_value || *end_ptr != '\0')
+    {
+        WARN("Invalid global sampler LOD bias value '%s', ignoring.\n", env_value);
+        return;
+    }
+
+    /* Clamp to Vulkan device limits */
+    max_bias = device->device_info.properties2.properties.limits.maxSamplerLodBias;
+    clamped_bias = parsed_bias;
+
+    if (clamped_bias > max_bias)
+        clamped_bias = max_bias;
+    else if (clamped_bias < -max_bias)
+        clamped_bias = -max_bias;
+
+    device->global_sampler_lod_bias = clamped_bias;
+
+    /* Log when non-zero bias is active */
+    if (clamped_bias != 0.0f)
+    {
+        if (clamped_bias != parsed_bias)
+        {
+            INFO("Global sampler LOD bias set to %.3f (requested %.3f, clamped to device limit %.3f).\n",
+                 clamped_bias, parsed_bias, max_bias);
+        }
+        else
+        {
+            INFO("Global sampler LOD bias set to %.3f.\n", clamped_bias);
+        }
+    }
+}
+
+
 static HRESULT vkd3d_create_vk_device(struct d3d12_device *device,
         const struct vkd3d_device_create_info *create_info)
 {
@@ -4254,6 +4308,7 @@ static HRESULT vkd3d_create_vk_device(struct d3d12_device *device,
 
     d3d12_device_init_workarounds(device);
     d3d12_device_init_vendor_hacks(device);
+    d3d12_device_init_global_sampler_lod_bias(device);
 
     TRACE("Created Vulkan device %p.\n", vk_device);
 
